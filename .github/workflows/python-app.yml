@@ -38,20 +38,24 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    # This is a composite GitHub Action (Linux runner) 
-    # for deploying repository content to remote server
-    - name: SFTP-Deploy-Action
-      uses: milanmk/actions-file-deployer@master
-      with:
-        remote-protocol: sftp
+  deploy:
+    runs-on: build
 
-        # Credentials for SFTP access to server using GitHub secrets
-        remote-host: ${{ secrets.FTP_SERVER }}
-        remote-user: ${{ secrets.FTP_USER }}
-        remote-password: ${{ secrets.FTP_PASSWORD }}
+    steps:
+      # This is a composite GitHub Action (Linux runner) 
+      # for deploying repository content to remote server
+      - name: SFTP-Deploy-Action
+        uses: milanmk/actions-file-deployer@master
+        with:
+          remote-protocol: sftp
 
-        # Path for specific folder on server for files deployment
-        remote-path: /var/www/rollbot.py/
+          # Credentials for SFTP access to server using GitHub secrets
+          remote-host: ${{ secrets.FTP_SERVER }}
+          remote-user: ${{ secrets.FTP_USER }}
+          remote-password: ${{ secrets.FTP_PASSWORD }}
 
-        # Port for SFTP access to server
-        remote-port: 22
+          # Path for specific folder on server for files deployment
+          remote-path: /var/www/rollbot.py/
+
+          # Port for SFTP access to server
+          remote-port: 22

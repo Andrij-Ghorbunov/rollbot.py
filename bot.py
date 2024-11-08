@@ -7,7 +7,7 @@ async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f'Hello {update.effective_user.first_name}')
 
 async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(f'Your message is: ' + update.message)
+    await update.message.reply_text(f'Your message is: ' + update.message.text)
 
 load_dotenv()
 app = ApplicationBuilder().token(os.getenv("TELEGRAM_BOT_TOKEN")).build()

@@ -38,6 +38,12 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
+    - name: Run script file
+      run: |
+        chmod +x ./lftp_assets.sh
+        ./lftp_assets.sh login
+      shell: bash 
+    
     # This is a composite GitHub Action (Linux runner) 
     # for deploying repository content to remote server
     - name: SFTP-Deploy-Action

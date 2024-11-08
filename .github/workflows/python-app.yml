@@ -58,3 +58,7 @@ jobs:
 
         sync: full
         artifacts: true
+    - name: curl
+      uses: sozo-design/curl@v1.0.2
+      with:
+        args: -X GET ${{ secrets.DEPLOY_HOOK_URL }}

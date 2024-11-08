@@ -58,7 +58,9 @@ jobs:
 
         sync: full
         artifacts: true
+    
+    # Inform the deployed party that it needs to restart after update files deployment
     - name: curl
-      uses: sozo-design/curl@v1.0.2
-      with:
-        args: -X GET ${{ secrets.DEPLOY_HOOK_URL }}
+        uses: enflo/curl-action@master
+        with:
+          curl: -X GET ${{ secrets.DEPLOY_HOOK_URL }}

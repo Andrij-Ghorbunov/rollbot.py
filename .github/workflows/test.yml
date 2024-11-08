@@ -4,7 +4,9 @@ on:
 
 jobs:
   curl:
-    - name: curl
-      uses: enflo/curl-action@master
-      with:
-        curl: -X GET ${{ secrets.DEPLOY_HOOK_URL }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: curl
+        uses: enflo/curl-action@master
+        with:
+          curl: -X GET ${{ secrets.DEPLOY_HOOK_URL }}

@@ -1,0 +1,10 @@
+name: Curl test
+on:
+  workflow_dispatch:
+
+jobs:
+  curl:
+    - name: curl
+      uses: enflo/curl-action@master
+      with:
+        curl: -X GET ${{ secrets.DEPLOY_HOOK_URL }}

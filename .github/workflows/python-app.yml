@@ -61,6 +61,6 @@ jobs:
     
     # Inform the deployed party that it needs to restart after update files deployment
     - name: curl
-        uses: enflo/curl-action@master
-        with:
-          curl: -X GET ${{ secrets.DEPLOY_HOOK_URL }}
+      uses: enflo/curl-action@master
+      with:
+        curl: -X GET ${{ secrets.DEPLOY_HOOK_URL }}

@@ -40,8 +40,7 @@ jobs:
 
     - name: Run script file
       run: |
-        chmod +x ./lftp_assets.sh
-        ./lftp_assets.sh login
+        dir
       shell: bash 
     
     # This is a composite GitHub Action (Linux runner) 

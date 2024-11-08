@@ -56,4 +56,5 @@ jobs:
         # Port for SFTP access to server
         remote-port: 22
 
+        sync: full
         artifacts: true

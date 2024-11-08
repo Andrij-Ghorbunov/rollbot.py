@@ -39,7 +39,8 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   deploy:
-    runs-on: build
+    needs: build
+    runs-on: ubuntu-latest
 
     steps:
       # This is a composite GitHub Action (Linux runner) 

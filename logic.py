@@ -81,15 +81,13 @@ def unparse_full(props):
     modifier = props['modifier']
     dc = props['dc']
     r = f'{dicenum}d{dicetype}'
-    if t is not None:
-        r += f', threshold {t}'
     if modifier:
-        if t is not None:
-            r += ', mod'
         if modifier > 0:
             r += f' + {modifier}'
         else:
             r += f' - {-modifier}'
+    if t is not None:
+        r += f', threshold {t}'
     if explode:
         r += f', {dicetype}s explode'
     if nobotch and t is not None:

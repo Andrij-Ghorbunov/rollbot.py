@@ -163,7 +163,7 @@ def roll_poisson(props):
     pass
 
 def roll_internal(props):
-    if props['dicenum'] < 100:
+    if props['dicenum'] <= 100:
         return roll_straight(props)
     if props['threshold']:
         return roll_poisson(props)
@@ -198,7 +198,7 @@ def roll_code_parse(code):
         roll2 = parse_code(code[(index+1):])
         if not roll1 or not roll2:
             return None
-        roll2['nobotch'] = True # optional, actually damage can also botch
+        # roll2['nobotch'] = True # uncomment for auto-nobotch for damage roll
         roll1result = roll(roll1)
         if roll1result['success']:
             bonus = 0

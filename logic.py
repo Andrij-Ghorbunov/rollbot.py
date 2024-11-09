@@ -29,7 +29,7 @@ def get_code_b(match: re.Match, name: str):
 
 def parse_code(code):
     match = re.search(
-        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?(?P<forcebotch>\?)?\s*(?P<modifier>[+-]\s*\d+)?(\s*dc\s*(?P<dc>\d+))?",
+        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?(?P<forcebotch>\?)?\s*(?P<modifier>[+-]\s*\d+)?(\s*[Dd][Cc]\s*(?P<dc>\d+))?",
         code)
     if not match:
         return None

@@ -84,6 +84,8 @@ def unparse_full(props):
     if t is not None:
         r += f', threshold {t}'
     if modifier:
+        if t is not None:
+            r += ', mod'
         if modifier > 0:
             r += f' + {modifier}'
         else:

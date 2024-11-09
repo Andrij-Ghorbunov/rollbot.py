@@ -21,6 +21,8 @@ async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(reply)
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not update:
+        return
     await update.message.reply_text(f'Error')
 
 load_dotenv()

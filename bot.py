@@ -3,6 +3,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 from dotenv import load_dotenv
 from logic import roll_code
+import re
 
 def user_tag(user: User):
     if user.username:
@@ -29,8 +30,11 @@ async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     code = update.message.text[5:]
     if len(code) and code[0] == '@':
-        index = code.index(' ')
-        code = code[index:]
+        match = re.search(r'^[\w_]+\b(.*)$', code[1:])
+        if not match:
+            await update.message.reply_text(f'Something strange happened')
+            return
+        code = match.group(1)
     reply = roll_code(code)
     if not reply:
         await update.message.reply_text("Wrong syntax, please check /help", parse_mode='HTML')

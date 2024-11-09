@@ -189,11 +189,15 @@ def roll_code_parse(code):
         roll2 = parse_code(code[(index+1):])
         if not roll1 or not roll2:
             return None
-        roll2['nobotch'] = True
+        roll2['nobotch'] = True # optional, actually damage can also botch
         roll1result = roll(roll1)
         if roll1result['success']:
-            roll2['dicenum'] += roll1result['overkill']
+            bonus = 0
+            if roll2['threshold']:
+                roll2['dicenum'] += roll1result['overkill']
+                bonus = roll1result['overkill']
             roll2result = roll(roll2)
+            roll2result['bonus'] = bonus
             return [roll1result, roll2result]
         return [roll1result]
     else:
@@ -209,12 +213,15 @@ def roll_code(code):
         return None
     text = roll_result_to_str(res[0])
     if len(res) > 1:
-        text += '\r\n\r\nDamage roll:\r\n' + roll_result_to_str(res[1])
+        text += '\r\n\r\nDamage roll'
+        bonus = res[1]['bonus']
+        if bonus:
+            text += f' ({bonus} extra dice from hit successes)'
+        text += ':\r\n' + roll_result_to_str(res[1])
     return text
 
 
 
 print('\r\n\r\nStart debug session\r\n\r\n')
-print(unparse_full(parse_code('3d10t6')))
-# print(roll_code("5d10t6! & 4d10t6"))
+print(roll_code('8d10t5! & 3d10t6'))
 print('\r\n\r\nEnd debug session\r\n\r\n')

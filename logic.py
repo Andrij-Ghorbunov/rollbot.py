@@ -1,5 +1,4 @@
 import re
-import json
 import random
 
 def get_code(match: re.Match, name: str, default):
@@ -30,7 +29,7 @@ def get_code_b(match: re.Match, name: str):
 
 def parse_code(code):
     match = re.search(
-        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?\s*(?P<modifier>[+-]\s*\d+)?(\s*dc\s*(?P<dc>\d+))?",
+        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?(?P<forcebotch>\?)?\s*(?P<modifier>[+-]\s*\d+)?(\s*dc\s*(?P<dc>\d+))?",
         code)
     if not match:
         return None
@@ -40,6 +39,7 @@ def parse_code(code):
         'threshold': get_code(match, 'threshold', None),
         'explode': get_code_b(match, 'explode'),
         'nobotch': get_code_b(match, 'nobotch'),
+        'forcebotch': get_code_b(match, 'forcebotch'),
         'modifier': get_code_sp(match, 'modifier', 0),
         'dc': get_code(match, 'dc', 1)
     }
@@ -51,7 +51,7 @@ def unparse(props):
     dicetype = props['dicetype']
     t = props['threshold']
     explode = props['explode']
-    nobotch = props['nobotch']
+    nobotch = props['nobotch'] and not props['forcebotch']
     modifier = props['modifier']
     dc = props['dc']
     r = f'{dicenum}d{dicetype}'
@@ -77,7 +77,7 @@ def unparse_full(props):
     dicetype = props['dicetype']
     t = props['threshold']
     explode = props['explode']
-    nobotch = props['nobotch']
+    nobotch = props['nobotch'] and not props['forcebotch']
     modifier = props['modifier']
     dc = props['dc']
     r = f'{dicenum}d{dicetype}'
@@ -100,7 +100,8 @@ def roll_straight(props):
     arr = []
     min = 1
     max = props['dicetype']
-    if props['dicetype'] == 'F':
+    isFate = str(props['dicetype'])[0] == 'F'
+    if isFate:
         min = -1
         max = 1
     for _ in range(props['dicenum']):
@@ -115,13 +116,21 @@ def roll_straight(props):
     else:
         score += sum(arr)
     explode = props['explode'] and min == 1
-    canbotch = not props['nobotch'] and min == 1 and t is not None
+    canbotch = (not props['nobotch'] and min == 1 and t is not None) or props['forcebotch']
     if explode:
         score += len(list(filter(lambda x: x == max, arr)))
     if canbotch:
         score -= len(list(filter(lambda x: x == min, arr)))
     dicearr = []
-    if isThreshold:
+    if isFate:
+        for d in arr:
+            if d > 0:
+                dicearr.append("+")
+            elif d < 0:
+                dicearr.append("-")
+            else:
+                dicearr.append("0")
+    elif isThreshold:
         for d in arr:
             if d >= t:
                 if explode and d == max:
@@ -222,6 +231,6 @@ def roll_code(code):
 
 
 
-print('\r\n\r\nStart debug session\r\n\r\n')
-print(roll_code('8d10t5! & 3d10t6'))
-print('\r\n\r\nEnd debug session\r\n\r\n')
+# print('\r\n\r\nStart debug session\r\n\r\n')
+# print(roll_code('7dF'))
+# print('\r\n\r\nEnd debug session\r\n\r\n')

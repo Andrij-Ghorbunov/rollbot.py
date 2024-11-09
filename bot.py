@@ -28,6 +28,9 @@ async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f'Something strange happened')
         return
     code = update.message.text[5:]
+    if len(code) and code[0] == '@':
+        index = code.index(' ')
+        code = code[index:]
     reply = roll_code(code)
     if not reply:
         await update.message.reply_text("Wrong syntax, please check /help", parse_mode='HTML')

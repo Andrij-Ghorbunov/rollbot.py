@@ -113,7 +113,6 @@ def roll_code_parse(code):
         index = code.index('&')
         roll1 = parse_code(code[:index])
         roll2 = parse_code(code[(index+1):])
-        print(roll2)
         if not roll1 or not roll2:
             return None
         roll2['nobotch'] = True
@@ -134,9 +133,11 @@ def roll_code(code):
     res = roll_code_parse(code)
     if not res:
         return "Error"
-    text = res[0]['str'] + f'\r\nScore: {res[0]['score']}'
+    score0 = res[0]['score']
+    text = res[0]['str'] + f'\r\nScore: {score0}'
     if len(res) > 1:
-        text += '\r\nDamage roll:\r\n' + res[1]['str'] + f'\r\nScore: {res[0]['score']}'
+        score1 = res[1]['score']
+        text += '\r\nDamage roll:\r\n' + res[1]['str'] + f'\r\nScore: {score1}'
     return text
 
 

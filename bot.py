@@ -1,16 +1,27 @@
-from telegram import Update
+from telegram import Update, User
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 from dotenv import load_dotenv
 from logic import roll_code
+
+def user_tag(user: User):
+    if user.username:
+        return '@' + user.username
+    name = user.first_name
+    if user.last_name:
+        name += ' ' + user.last_name
+    return f'<a href="tg://user?id={user.id}">{name}</a>'
+    pass
 
 async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f'Hello {update.effective_user.first_name}')
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Syntax: /roll #d#t#!=±#. Initial # is number of dice in the pool (1 by default), d# is number of sides in a die (10 by default), "
-        + "t# is threshold to count as a success (6 by default), +# or -# modifies the result, ! counts maximal values as two successes each, "
-        + "= prevents subtraction of 1s from successes. Everything is optional.")
+        + "t# is threshold to count as a success (if not provided - simply counts sum of rolled values), +# or -# modifies the result, ! counts maximal values "
+        + "as two successes each, "
+        + "= prevents subtraction of 1s from successes. Everything is optional. Roll for hit and roll for damage can be combined with & (in case of threshold, "
+        + "exceeding successes from the first roll will be added to the pool of the second one).")
 
 async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update.message.text[:5] != '/roll':
@@ -18,6 +29,10 @@ async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     code = update.message.text[5:]
     reply = roll_code(code)
+    if not reply:
+        await update.message.reply_text("Wrong syntax, please check /help", parse_mode='HTML')
+        return
+    reply = user_tag(update.message.from_user) + ' rolled ' + reply
     await update.message.reply_text(reply, parse_mode='HTML')
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

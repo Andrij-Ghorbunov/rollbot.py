@@ -30,7 +30,7 @@ def get_code_b(match: re.Match, name: str):
 
 def parse_code(code):
     match = re.search(
-        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?\s*(?P<modifier>[+-]\s*\d+)?(\s*dc\s*(?P<dc>\d+))?\s*$",
+        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?\s*(?P<modifier>[+-]\s*\d+)?(\s*dc\s*(?P<dc>\d+))?",
         code)
     if not match:
         return None
@@ -43,6 +43,58 @@ def parse_code(code):
         'modifier': get_code_sp(match, 'modifier', 0),
         'dc': get_code(match, 'dc', 1)
     }
+
+def unparse(props):
+    if not props:
+        return ''
+    dicenum = props['dicenum']
+    dicetype = props['dicetype']
+    t = props['threshold']
+    explode = props['explode']
+    nobotch = props['nobotch']
+    modifier = props['modifier']
+    dc = props['dc']
+    r = f'{dicenum}d{dicetype}'
+    if t is not None:
+        r += f't{t}'
+    if explode:
+        r += '!'
+    if nobotch and t is not None:
+        r += '='
+    if modifier:
+        if modifier > 0:
+            r += f'+{modifier}'
+        else:
+            r += f'{modifier}'
+    if t is None or dc != 1:
+        r += f' dc {dc}'
+    return r
+
+def unparse_full(props):
+    if not props:
+        return ''
+    dicenum = props['dicenum']
+    dicetype = props['dicetype']
+    t = props['threshold']
+    explode = props['explode']
+    nobotch = props['nobotch']
+    modifier = props['modifier']
+    dc = props['dc']
+    r = f'{dicenum}d{dicetype}'
+    if t is not None:
+        r += f', threshold {t}'
+    if modifier:
+        if modifier > 0:
+            r += f' + {modifier}'
+        else:
+            r += f' - {-modifier}'
+    if explode:
+        r += f', {dicetype}s explode'
+    if nobotch and t is not None:
+        r += ', no botch'
+    if t is None or dc != 1:
+        r += f', DC {dc}'
+    return r
 
 def roll_straight(props):
     arr = []
@@ -101,12 +153,34 @@ def roll_normal(props):
 def roll_poisson(props):
     pass
 
-def roll(props):
+def roll_internal(props):
     if props['dicenum'] < 100:
         return roll_straight(props)
     if props['threshold']:
         return roll_poisson(props)
     return roll_normal(props)
+
+def roll(props):
+    res = roll_internal(props)
+    if not res:
+        return None
+    res['unparse'] = unparse(props)
+    res['unparse_full'] = unparse_full(props)
+    return res
+
+def roll_result_to_str(res):
+    r = res['unparse_full'] + ':\r\n'
+    r += res['str'] + '\r\n'
+    score = res['score']
+    overkill = res['overkill']
+    if res['success']:
+        r += f'<b>Success</b> by {overkill}'
+    elif score < 0:
+        r += f'<b>Botch</b> by {overkill}'
+    else:
+        r += '<b>Fail</b>'
+    r += f'\r\nScore: {score}'
+    return r
 
 def roll_code_parse(code):
     if '&' in code:
@@ -132,16 +206,15 @@ def roll_code_parse(code):
 def roll_code(code):
     res = roll_code_parse(code)
     if not res:
-        return "Error"
-    score0 = res[0]['score']
-    text = res[0]['str'] + f'\r\nScore: {score0}'
+        return None
+    text = roll_result_to_str(res[0])
     if len(res) > 1:
-        score1 = res[1]['score']
-        text += '\r\nDamage roll:\r\n' + res[1]['str'] + f'\r\nScore: {score1}'
+        text += '\r\n\r\nDamage roll:\r\n' + roll_result_to_str(res[1])
     return text
 
 
 
-# print('\r\n\r\nStart debug session\r\n\r\n')
+print('\r\n\r\nStart debug session\r\n\r\n')
+print(unparse_full(parse_code('3d10t6')))
 # print(roll_code("5d10t6! & 4d10t6"))
-# print('\r\n\r\nEnd debug session\r\n\r\n')
+print('\r\n\r\nEnd debug session\r\n\r\n')

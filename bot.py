@@ -18,7 +18,7 @@ async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     code = update.message.text[5:]
     reply = roll_code(code)
-    await update.message.reply_text(reply)
+    await update.message.reply_text(reply, parse_mode='HTML')
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not update:

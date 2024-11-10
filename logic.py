@@ -27,13 +27,24 @@ def get_code_b(match: re.Match, name: str):
         return True
     return False
 
+def validate_props(props):
+    isFate = str(props['dicetype'])[0] == 'F'
+    if isFate:
+        props['explode'] = False
+        props['nobotch'] = True
+        props['forcebotch'] = False
+        props['threshold'] = None
+    elif props['dicetype'] < 1:
+        props['dicetype'] = 1
+    return props
+
 def parse_code(code):
     match = re.search(
         r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?(?P<forcebotch>\?)?\s*(?P<modifier>[+-]\s*\d+)?(\s*[Dd][Cc]\s*(?P<dc>\d+))?",
         code)
     if not match:
         return None
-    return {
+    return validate_props({
         'dicenum': get_code(match, 'dicenum', 1),
         'dicetype': get_code_dt(match, 'dicetype', 10),
         'threshold': get_code(match, 'threshold', None),
@@ -42,7 +53,7 @@ def parse_code(code):
         'forcebotch': get_code_b(match, 'forcebotch'),
         'modifier': get_code_sp(match, 'modifier', 0),
         'dc': get_code(match, 'dc', 1)
-    }
+    })
 
 def unparse(props):
     if not props:
@@ -95,6 +106,24 @@ def unparse_full(props):
     if t is None or dc != 1:
         r += f', DC {dc}'
     return r
+
+def get_fate_score(score):
+    if score <= -2:
+        return "Terrible"
+    if score >= 9:
+        return "Beyond Legendary"
+    match score:
+        case -1: return "Poor"
+        case 0: return "Mediocre"
+        case 1: return "Average"
+        case 2: return "Fair"
+        case 3: return "Good"
+        case 4: return "Great"
+        case 5: return "Superb"
+        case 6: return "Fantastic"
+        case 7: return "Epic"
+        case 8: return "Legendary"
+    return "?"
 
 def roll_straight(props):
     arr = []
@@ -149,11 +178,15 @@ def roll_straight(props):
             else:
                 dicearr.append(f"{d}")
     dicestr = ', '.join(dicearr)
+    description = None
+    if isFate:
+        description = get_fate_score(score)
     return {
         'score': score,
         'str': dicestr,
         'success': score >= dc,
-        'overkill': score - dc if score >= dc else (0 if score >= 0 else -score)
+        'overkill': score - dc if score >= dc else (0 if score >= 0 else -score),
+        'description': description
     }
 
 def roll_normal(props):
@@ -182,7 +215,10 @@ def roll_result_to_str(res):
     r += res['str'] + '\r\n'
     score = res['score']
     overkill = res['overkill']
-    if res['success']:
+    description = res['description']
+    if description:
+        r += f'<b>{description}</b>'
+    elif res['success']:
         r += f'<b>Success</b> by {overkill}'
     elif score < 0:
         r += f'<b>Botch</b> by {overkill}'

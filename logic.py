@@ -280,7 +280,7 @@ def roll_normal(props):
         description = get_fate_score(score)
     method_name = random.choice(['elliptical curves', 'Riemann space', 'Lee algebra',
         'black hole evaporation', 'quantum computing', 'M-theory', 'spacetime wrapping', 'forbidden dark magic'])
-    title = f' {n} dice using {method_name}'
+    title = f'{n} dice using {method_name}'
     if r['extra_dice']: # fun text
         extra = abs(r['extra_dice'])
         dice_text = 'die' if extra == 1 else 'dice'
@@ -326,11 +326,12 @@ def roll(props):
     return res
 
 def roll_result_to_str(res):
-    r = res['unparse_full'] + ':\r\n'
+    title = res['title']
+    unparse = res['unparse_full']
+    r = f'{title} ({unparse}):\r\n' if title else f'{unparse}:\r\n'
     r += res['str'] + '\r\n'
     score = res['score']
     overkill = res['overkill']
-    title = res['title']
     description = res['description']
     if title:
         r = title + '\r\n' + r

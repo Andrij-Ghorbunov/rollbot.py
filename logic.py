@@ -280,7 +280,7 @@ def roll_normal(props):
         description = get_fate_score(score)
     method_name = random.choice(['elliptical curves', 'Riemann space', 'Lee algebra',
         'black hole evaporation', 'quantum computing', 'M-theory', 'spacetime wrapping', 'forbidden dark magic'])
-    title = f'Rolled {n} dice using {method_name}'
+    title = f' {n} dice using {method_name}'
     if r['extra_dice']: # fun text
         extra = abs(r['extra_dice'])
         dice_text = 'die' if extra == 1 else 'dice'

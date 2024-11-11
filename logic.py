@@ -1,5 +1,9 @@
 import re
 import random
+import numpy
+import scipy
+import scipy.special
+import math
 
 def get_code(match: re.Match, name: str, default):
     strcode = match.group(name)
@@ -125,6 +129,36 @@ def get_fate_score(score):
         case 8: return "Legendary"
     return "?"
 
+def dice_str_array(arr, min, max, isFate, t, explode, canbotch):
+    dicearr = []
+    if isFate:
+        for d in arr:
+            if d > 0:
+                dicearr.append("+")
+            elif d < 0:
+                dicearr.append("-")
+            else:
+                dicearr.append("0")
+    elif t is not None:
+        for d in arr:
+            if d >= t:
+                if explode and d == max:
+                    dicearr.append(f"<b><u>{d}</u></b>")
+                else:
+                    dicearr.append(f"<b>{d}</b>")
+            else:
+                if canbotch and d == min:
+                    dicearr.append(f"<i>{d}</i>")
+                else:
+                    dicearr.append(f"{d}")
+    else:
+        for d in arr:
+            if explode and d == max:
+                dicearr.append(f"<u>{d}</u>")
+            else:
+                dicearr.append(f"{d}")
+    return dicearr
+
 def roll_straight(props):
     arr = []
     min = 1
@@ -150,33 +184,7 @@ def roll_straight(props):
         score += len(list(filter(lambda x: x == max, arr)))
     if canbotch:
         score -= len(list(filter(lambda x: x == min, arr)))
-    dicearr = []
-    if isFate:
-        for d in arr:
-            if d > 0:
-                dicearr.append("+")
-            elif d < 0:
-                dicearr.append("-")
-            else:
-                dicearr.append("0")
-    elif isThreshold:
-        for d in arr:
-            if d >= t:
-                if explode and d == max:
-                    dicearr.append(f"<b><u>{d}</u></b>")
-                else:
-                    dicearr.append(f"<b>{d}</b>")
-            else:
-                if canbotch and d == min:
-                    dicearr.append(f"<i>{d}</i>")
-                else:
-                    dicearr.append(f"{d}")
-    else:
-        for d in arr:
-            if explode and d == max:
-                dicearr.append(f"<u>{d}</u>")
-            else:
-                dicearr.append(f"{d}")
+    dicearr = dice_str_array(arr, min, max, isFate, t, explode, canbotch)
     dicestr = ', '.join(dicearr)
     description = None
     if isFate:
@@ -189,18 +197,124 @@ def roll_straight(props):
         'description': description
     }
 
+# This function uses inverse error function in order to convert a uniformly distributed variable s
+# into another variable m distributed normally. The parameters of the desired normal distribution
+# are given with number of tries n and chance of success in a single try p, so that the obtained
+# normal distribution is the best approximation for the corresponding binomial distribution.
+# In short, this gives us the number of times an event occured in n attempts, but with a single
+# call to the random number generator.
+def roll_inverse_normal(n, p):
+    s = random.random() # 2s-1 is uniform on [-1..1]
+    erfi = scipy.special.erfinv(2*s-1) # erfi is normal with center 0 and standard deviation 1
+    m = n*p + erfi*math.sqrt(2*n*p*(1-p)) # center + erfi * needed standard deviation
+    if m < 0: # clamp to limits
+        m = 0
+    if m > n:
+        m = n
+    return math.trunc(m + 0.5) # round to nearest integer
+
+# Similar to the previous one, this function rolls an entire array of all k possible outcomes with 1/k probability each.
+# It renormalizes any exceeding values, so that the sum of the resulting array is exactly n. 
+def roll_inverse_normal_arr(n, k):
+    p = 1 / k
+    m = []
+    mtotal = 0
+    for _ in range(k):
+        s = random.random() # 2s-1 is uniform on [-1..1]
+        erfi = scipy.special.erfinv(2*s-1) # erfi is normal with center 0 and standard deviation 1
+        mcurr = 0.5 + n*p + erfi*math.sqrt(2*n*p*(1-p)) # center + erfi * needed standard deviation
+        mtotal += mcurr
+        m.append(mcurr)
+    if mtotal <= 0: # a very unlikely situation
+        return []
+    factor = n / mtotal # first normalize by the total rolled value
+    res = []
+    res_sum = 0
+    for x in m:
+        normalized_x = x * factor
+        if normalized_x < 0:
+            normalized_x = 0
+        if normalized_x > n:
+            normalized_x = n
+        trunc_x = math.trunc(normalized_x + 0.5)
+        res_sum += trunc_x
+        res.append(trunc_x)
+    # now, if rounding errors did not add up to 0, fix this by randomly seeding the difference
+    # and remembering the number of extra rolls (for statistics and a fun message to the user)
+    if res_sum > n:
+        for _ in range(res_sum - n):
+            res[random.randint(0, k - 1)] -= 1
+    elif res_sum < n:
+        for _ in range(n - res_sum):
+            res[random.randint(0, k - 1)] += 1
+    return {
+        'results': res,
+        'extra_dice': res_sum - n
+    }
+
 def roll_normal(props):
+    n = props['dicenum']
+    k = props['dicetype']
+    t = props['threshold']
+    dc = props['dc']
+    min = 1
+    max = k
+    isFate = str(props['dicetype'])[0] == 'F'
+    if isFate:
+        k = 3
+        min = -1
+        max = 1
+    r = roll_inverse_normal_arr(n, k)
+    scores = r['results']
+    values = [1, 0, -1] if isFate else list(range(k, 0, -1)) # possible values of the dice
+    dicearr = dice_str_array(values, min, max, isFate, t, False, False)
+    dicezip = list(zip(dicearr, scores, values))
+    dicestr = ', '.join([f'{z[0]}s: {z[1]}' for z in dicezip])
+    if t is None:
+        score = sum([z[2]*z[1] for z in dicezip])
+    else:
+        score = sum([z[1] for z in dicezip if z[2] >= t])
+    description = None
+    if isFate:
+        description = get_fate_score(score)
+    method_name = random.choice(['elliptical curves', 'Riemann space', 'Lee algebra',
+        'black hole evaporation', 'quantum computing', 'M-theory', 'spacetime wrapping', 'forbidden dark magic'])
+    title = f'Rolled {n} dice using {method_name}'
+    if r['extra_dice']: # fun text
+        extra = abs(r['extra_dice'])
+        dice_text = 'die' if extra == 1 else 'dice'
+        verb = 'gone into' if r['extra_dice'] > 0 else 'emerged from'
+        portal_name = random.choice(['under event horizon', 'Taylor series expansion', 'a wormhole', 'quantum fluctuation',
+            'a supersymmetry violation', 'a parallel universe', 'the Umbral world'])
+        title += f', {extra} extra {dice_text} {verb} {portal_name}'
+    return {
+        'score': score,
+        'str': dicestr,
+        'success': score >= dc,
+        'overkill': score - dc if score >= dc else (0 if score >= 0 else -score),
+        'title': title,
+        'description': description
+    }
+
+def roll_threshold(props):
+    n = props['dicetype']
+    success_sides = n - props['threshold'] + 1
+    p = success_sides / n
+    r = roll_inverse_normal(n, p)
     pass
 
-def roll_poisson(props):
+def roll_sum(props):
     pass
 
 def roll_internal(props):
     if props['dicenum'] <= 100:
-        return roll_straight(props)
+        return roll_straight(props) # few dice - roll directly each die
+    if str(props['dicetype'])[0] == 'F' or props['dicetype'] <= 100:
+        return roll_normal(props) # lots of dice, few faces each - can create an array res where res[k] = number of dice that landed on k
+    # lots of dice AND lots of faces each - can only get approximate overall statistics
     if props['threshold']:
-        return roll_poisson(props)
-    return roll_normal(props)
+        return roll_threshold(props)
+    return roll_sum(props)
 
 def roll(props):
     res = roll_internal(props)
@@ -215,7 +329,10 @@ def roll_result_to_str(res):
     r += res['str'] + '\r\n'
     score = res['score']
     overkill = res['overkill']
+    title = res['title']
     description = res['description']
+    if title:
+        r = title + '\r\n' + r
     if description:
         r += f'<b>{description}</b>'
     elif res['success']:
@@ -268,5 +385,5 @@ def roll_code(code):
 
 
 # print('\r\n\r\nStart debug session\r\n\r\n')
-# print(roll_code('7dF'))
+# print(roll_code('1000d10t7'))
 # print('\r\n\r\nEnd debug session\r\n\r\n')

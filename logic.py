@@ -333,8 +333,6 @@ def roll_result_to_str(res):
     score = res['score']
     overkill = res['overkill']
     description = res['description']
-    if title:
-        r = title + '\r\n' + r
     if description:
         r += f'<b>{description}</b>'
     elif res['success']:

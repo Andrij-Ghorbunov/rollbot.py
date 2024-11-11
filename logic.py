@@ -194,6 +194,7 @@ def roll_straight(props):
         'str': dicestr,
         'success': score >= dc,
         'overkill': score - dc if score >= dc else (0 if score >= 0 else -score),
+        'title': None,
         'description': description
     }
 

@@ -243,8 +243,13 @@ def roll_inverse_normal_arr(n, k):
     # now, if rounding errors did not add up to 0, fix this by randomly seeding the difference
     # and remembering the number of extra rolls (for statistics and a fun message to the user)
     if res_sum > n:
+        # only select positive dice pool slots and maintain this condition
+        indices = [x for x in range(0, k - 1) if res[x] > 0]
         for _ in range(res_sum - n):
-            res[random.randint(0, k - 1)] -= 1
+            index = random.choice(indices)
+            res[index] -= 1
+            if res[index] <= 0: # can only subtract from positive numbers
+                indices.remove(index)
     elif res_sum < n:
         for _ in range(n - res_sum):
             res[random.randint(0, k - 1)] += 1
@@ -385,5 +390,5 @@ def roll_code(code):
 
 
 # print('\r\n\r\nStart debug session\r\n\r\n')
-# print(roll_code('1000d10t7'))
+# print(roll_code('101d100'))
 # print('\r\n\r\nEnd debug session\r\n\r\n')

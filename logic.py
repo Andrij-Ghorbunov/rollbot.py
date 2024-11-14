@@ -376,12 +376,12 @@ def roll_threshold(props):
     if not props['nobotch']:
         # have to roll remaining dice for 1s
         unsuccess = n - r # number of remaining dice
-        botch_chance = 1 / (d - t + 1)
+        botch_chance = 1 if t == 0 else 1 / t # 1 among [1..t-1]
         b = roll_inverse(unsuccess, botch_chance)
         dicestr_botch = f' ({b} of them botched)'
     if props['explode']:
         # have to roll successfu dice for explosions
-        expl_chance = 1 / (d - t + 1)
+        expl_chance = 1 / (d - t + 1) # 1 last among [t..d]
         ex = roll_inverse(r, expl_chance)
         dicestr_explode = f' ({ex} of them exploded)'
     score = r - b + ex
@@ -518,5 +518,5 @@ def roll_code(code):
 
 
 # print('\r\n\r\nStart debug session\r\n\r\n')
-# print(roll_code('1000d1000000t999000!'))
+# print(roll_code('1000000d1000t900!'))
 # print('\r\n\r\nEnd debug session\r\n\r\n')

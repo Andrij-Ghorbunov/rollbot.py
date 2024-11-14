@@ -40,6 +40,8 @@ def validate_props(props):
         props['threshold'] = None
     elif props['dicetype'] < 1:
         props['dicetype'] = 1
+    if props['threshold'] is not None and props['dc'] is None:
+        props['dc'] = 1 # 1 success required in order to count a threshold roll successful
     return props
 
 def parse_code(code):
@@ -56,7 +58,7 @@ def parse_code(code):
         'nobotch': get_code_b(match, 'nobotch'),
         'forcebotch': get_code_b(match, 'forcebotch'),
         'modifier': get_code_sp(match, 'modifier', 0),
-        'dc': get_code(match, 'dc', 1)
+        'dc': get_code(match, 'dc', None)
     })
 
 def unparse(props):
@@ -81,7 +83,7 @@ def unparse(props):
             r += f'+{modifier}'
         else:
             r += f'{modifier}'
-    if t is None or dc != 1:
+    if dc is not None and (t is None or dc != 1):
         r += f' dc {dc}'
     return r
 
@@ -107,7 +109,7 @@ def unparse_full(props):
         r += f', {dicetype}s explode'
     if nobotch and t is not None:
         r += ', no botch'
-    if t is None or dc != 1:
+    if dc is not None and (t is None or dc != 1):
         r += f', DC {dc}'
     return r
 
@@ -128,6 +130,16 @@ def get_fate_score(score):
         case 7: return "Epic"
         case 8: return "Legendary"
     return "?"
+
+def result_success(score, dc) -> bool:
+    if dc is None:
+        return True
+    return score >= dc
+
+def result_overkill(score, dc):
+    if dc is None:
+        return None
+    return score - dc if score >= dc else (0 if score >= 0 else -score)
 
 def dice_str_array(arr, min, max, isFate, t, explode, canbotch):
     dicearr = []
@@ -192,8 +204,8 @@ def roll_straight(props):
     return {
         'score': score,
         'str': dicestr,
-        'success': score >= dc,
-        'overkill': score - dc if score >= dc else (0 if score >= 0 else -score),
+        'success': result_success(score, dc),
+        'overkill': result_overkill(score, dc),
         'title': None,
         'description': description
     }
@@ -201,20 +213,50 @@ def roll_straight(props):
 # This function uses inverse error function in order to convert a uniformly distributed variable s
 # into another variable m distributed normally. The parameters of the desired normal distribution
 # are given with number of tries n and chance of success in a single try p, so that the obtained
-# normal distribution is the best approximation for the corresponding binomial distribution.
+# normal distribution is the best approximation for the corresponding binomial distribution
+# (per de Moivre–Laplace theorem).
 # In short, this gives us the number of times an event occured in n attempts, but with a single
 # call to the random number generator.
-def roll_inverse_normal(n, p):
-    s = random.random() # 2s-1 is uniform on [-1..1]
+def roll_inverse_normal_s(n, p, s):
     erfi = scipy.special.erfinv(2*s-1) # erfi is normal with center 0 and standard deviation 1
-    m = n*p + erfi*math.sqrt(2*n*p*(1-p)) # center + erfi * needed standard deviation
+    m = n*p + erfi*math.sqrt(n*p*(1-p)) # center + erfi * needed standard deviation
     if m < 0: # clamp to limits
         m = 0
     if m > n:
         m = n
     return math.trunc(m + 0.5) # round to nearest integer
 
-# Similar to the previous one, this function rolls an entire array of all k possible outcomes with 1/k probability each.
+def roll_inverse_normal(n, p):
+    s = random.random() # 2s-1 is uniform on [-1..1]
+    return roll_inverse_normal_s(n, p, s)
+
+# This function uses Poisson theorem to approximate binomial distribution
+# in case of small n*p (math. expectation of number of successes), similarly to
+# the previous function using de Moivre–Laplace theorem.
+# Falls back to de Moivre–Laplace where it is expected to give a more
+# accurate approximation (happens no more than 1 time in a million).
+def roll_inverse_poisson_s(n, p, s):
+    running_total = 0 # cumulative distribution function value
+    lmbd = n*p #lambda
+    lmbd_m = 1 # lambda to the power of m
+    e_minlmbd = math.exp(-lmbd) # e^-lambda
+    factinv = 1 # 1/m!
+    for m in range(10): # only 10 to 20 first values will actually be better than normal distribution
+        # (but they still cover 99.9999% of use cases)
+        running_total += lmbd_m * e_minlmbd * factinv # add current member
+        if s < running_total: # reached the Poisson distribution threshold
+            return m # no need for further calculations, we're there
+        lmbd_m *= lmbd # increase power of lambds
+        factinv /= m + 1 # increase factorial in the denominator
+    # if s is so high, normal distribution by de Moivre–Laplace is better
+    # The benchmark showed that s here must be at least 0.999999
+    return roll_inverse_normal_s(n, p, s)
+
+def roll_inverse_poisson(n, p):
+    s = random.random() # uniform on [0..1]
+    return roll_inverse_poisson_s(n, p, s)
+
+# Similar to roll_inverse_normal, this function rolls an entire array of all k possible outcomes with 1/k probability each.
 # It renormalizes any exceeding values, so that the sum of the resulting array is exactly n. 
 def roll_inverse_normal_arr(n, k):
     p = 1 / k
@@ -223,7 +265,7 @@ def roll_inverse_normal_arr(n, k):
     for _ in range(k):
         s = random.random() # 2s-1 is uniform on [-1..1]
         erfi = scipy.special.erfinv(2*s-1) # erfi is normal with center 0 and standard deviation 1
-        mcurr = 0.5 + n*p + erfi*math.sqrt(2*n*p*(1-p)) # center + erfi * needed standard deviation
+        mcurr = 0.5 + n*p + erfi*math.sqrt(n*p*(1-p)) # center + erfi * needed standard deviation
         mtotal += mcurr
         m.append(mcurr)
     if mtotal <= 0: # a very unlikely situation
@@ -251,12 +293,24 @@ def roll_inverse_normal_arr(n, k):
             if res[index] <= 0: # can only subtract from positive numbers
                 indices.remove(index)
     elif res_sum < n:
+        # can add to any slot, a simpler algorithm
         for _ in range(n - res_sum):
             res[random.randint(0, k - 1)] += 1
     return {
         'results': res,
         'extra_dice': res_sum - n
     }
+
+# Decides which approximation is better - normal or Poisson,
+# and uses it to roll N dice with chance p of success for each die.
+def roll_inverse(n, p):
+    if p <= 0:
+        return 0
+    if p >= 1:
+        return n
+    if n * p <= 1.05: # benchmark results - de Moivre–Laplace catches up pretty fast
+        return roll_inverse_poisson(n, p)
+    return roll_inverse_normal(n, p)
 
 def roll_normal(props):
     n = props['dicenum']
@@ -296,34 +350,103 @@ def roll_normal(props):
     return {
         'score': score,
         'str': dicestr,
-        'success': score >= dc,
-        'overkill': score - dc if score >= dc else (0 if score >= 0 else -score),
+        'success': result_success(score, dc),
+        'overkill': result_overkill(score, dc),
         'title': title,
         'description': description
     }
 
 def roll_threshold(props):
-    n = props['dicetype']
-    success_sides = n - props['threshold'] + 1
-    p = success_sides / n
-    r = roll_inverse_normal(n, p)
-    pass
+    n = props['dicenum']
+    d = props['dicetype']
+    t = props['threshold']
+    dc = props['dc']
+    success_sides = d - t + 1 # number of sides treated as success
+    p = success_sides / d # chance of success on a single die
+    r = roll_inverse(n, p) # number of direct successes in the roll
+    b = 0 # botch dice number
+    ex = 0 # exploded dice number
+    method_name = random.choice(['an infinite hotel', 'Cantor\'s diagonal argument', 'quaternions',
+        'Graham\'s number', 'Galois theory', 'condensed matter', 'superconductivity', 'witchcraft'])
+    title = f'{n} dice using {method_name}'
+    dicestr_success = f'{r}'
+    dicestr_fail = f'{n - r}'
+    dicestr_explode = ''
+    dicestr_botch = ''
+    if not props['nobotch']:
+        # have to roll remaining dice for 1s
+        unsuccess = n - r # number of remaining dice
+        botch_chance = 1 / (d - t + 1)
+        b = roll_inverse(unsuccess, botch_chance)
+        dicestr_botch = f' ({b} of them botched)'
+    if props['explode']:
+        # have to roll successfu dice for explosions
+        expl_chance = 1 / (d - t + 1)
+        ex = roll_inverse(r, expl_chance)
+        dicestr_explode = f' ({ex} of them exploded)'
+    score = r - b + ex
+    dicestr = f'Threshold: {t}\r\nSuccess: {dicestr_success} dice{dicestr_explode}\r\nFail: {dicestr_fail} dice{dicestr_botch}'
+    return {
+        'score': score,
+        'str': dicestr,
+        'success': result_success(score, dc),
+        'overkill': result_overkill(score, dc),
+        'title': title,
+        'description': None
+    }
+
+# Rolls n d-sided dice for a total result, using the Central Limit Theorem
+def roll_sum_central(n, d):
+    min = n
+    max = n * d
+    average = n * (d + 1) / 2
+    msd = math.sqrt(n)
+    s = random.random()
+    erfi = scipy.special.erfinv(2*s-1)
+    sum = average + msd * erfi
+    if sum < min:
+        sum = min
+    if sum > max:
+        sum = max
+    return math.trunc(sum + 0.5)
 
 def roll_sum(props):
-    pass
+    # except for botches and explosions, this is a straightforward normally-distributed roll
+    n = props['dicenum']
+    d = props['dicetype']
+    n_remaining = n # TODO: account for explosions and botches
+    d_remaining = d
+    shift = 0
+    score = roll_sum_central(n, d)
+    dicestr = '(calculating total...)'
+    dc = props['dc']
+    method_name = random.choice(['Goldbach\'s conjecture', 'Calabi-Yau manifolds', 'Fourier transform',
+        'Conway arrow notation', 'fractal geometry', 'subatomic particles', 'Schrödinger\'s equation', 'demon summoning'])
+    title = f'{n} dice using {method_name}'
+    return {
+        'score': score,
+        'str': dicestr,
+        'success': result_success(score, dc),
+        'overkill': result_overkill(score, dc),
+        'title': title,
+        'description': None
+    }
 
-def roll_internal(props):
+# Checks number of dice and number of sides, forks execution into
+# the most appropriate method.
+def roll_fork(props):
     if props['dicenum'] <= 100:
         return roll_straight(props) # few dice - roll directly each die
     if str(props['dicetype'])[0] == 'F' or props['dicetype'] <= 100:
         return roll_normal(props) # lots of dice, few faces each - can create an array res where res[k] = number of dice that landed on k
+        # using only normal approximation here - it's out of range of Poisson feasibility
     # lots of dice AND lots of faces each - can only get approximate overall statistics
-    if props['threshold']:
+    if props['threshold'] is not None:
         return roll_threshold(props)
     return roll_sum(props)
 
 def roll(props):
-    res = roll_internal(props)
+    res = roll_fork(props)
     if not res:
         return None
     res['unparse'] = unparse(props)
@@ -336,15 +459,20 @@ def roll_result_to_str(res):
     r = f'{title} ({unparse}):\r\n' if title else f'{unparse}:\r\n'
     r += res['str'] + '\r\n'
     score = res['score']
+    success = res['success']
     overkill = res['overkill']
     description = res['description']
     if description:
         r += f'<b>{description}</b>'
-    elif res['success']:
-        r += f'<b>Success</b> by {overkill}'
-    elif score < 0:
-        r += f'<b>Botch</b> by {overkill}'
-    else:
+    elif success:
+        r += f'<b>Success</b>'
+        if overkill is not None:
+            r += f' by {overkill}'
+    elif success is not None and score < 0:
+        r += f'<b>Botch</b>'
+        if overkill is not None:
+            r += f' by {overkill}'
+    elif success is not None:
         r += '<b>Fail</b>'
     r += f'\r\nScore: {score}'
     return r
@@ -390,5 +518,5 @@ def roll_code(code):
 
 
 # print('\r\n\r\nStart debug session\r\n\r\n')
-# print(roll_code('101d100'))
+# print(roll_code('1000d1000000t999000!'))
 # print('\r\n\r\nEnd debug session\r\n\r\n')

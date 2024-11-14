@@ -36,7 +36,6 @@ def validate_props(props):
     if isFate:
         props['explode'] = False
         props['nobotch'] = True
-        props['forcebotch'] = False
         props['threshold'] = None
     elif props['dicetype'] < 1:
         props['dicetype'] = 1
@@ -46,7 +45,7 @@ def validate_props(props):
 
 def parse_code(code):
     match = re.search(
-        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?(?P<forcebotch>\?)?\s*(?P<modifier>[+-]\s*\d+)?(\s*[Dd][Cc]\s*(?P<dc>\d+))?",
+        r"^\s*(?P<dicenum>\d*)(d(?P<dicetype>\d+|F))?(t(?P<threshold>\d+))?(?P<explode>\!)?(?P<nobotch>=)?\s*(?P<modifier>[+-]\s*\d+)?(\s*[Dd][Cc]\s*(?P<dc>\d+))?",
         code)
     if not match:
         return None
@@ -56,7 +55,6 @@ def parse_code(code):
         'threshold': get_code(match, 'threshold', None),
         'explode': get_code_b(match, 'explode'),
         'nobotch': get_code_b(match, 'nobotch'),
-        'forcebotch': get_code_b(match, 'forcebotch'),
         'modifier': get_code_sp(match, 'modifier', 0),
         'dc': get_code(match, 'dc', None)
     })
@@ -68,7 +66,7 @@ def unparse(props):
     dicetype = props['dicetype']
     t = props['threshold']
     explode = props['explode']
-    nobotch = props['nobotch'] and not props['forcebotch']
+    nobotch = props['nobotch']
     modifier = props['modifier']
     dc = props['dc']
     r = f'{dicenum}d{dicetype}'
@@ -94,7 +92,7 @@ def unparse_full(props):
     dicetype = props['dicetype']
     t = props['threshold']
     explode = props['explode']
-    nobotch = props['nobotch'] and not props['forcebotch']
+    nobotch = props['nobotch']
     modifier = props['modifier']
     dc = props['dc']
     r = f'{dicenum}d{dicetype}'
@@ -191,7 +189,7 @@ def roll_straight(props):
     else:
         score += sum(arr)
     explode = props['explode'] and min == 1
-    canbotch = (not props['nobotch'] and min == 1 and t is not None) or props['forcebotch']
+    canbotch = (not props['nobotch'] and min == 1 and t is not None)
     if explode:
         score += len(list(filter(lambda x: x == max, arr)))
     if canbotch:
@@ -338,7 +336,7 @@ def roll_normal(props):
     if isFate:
         description = get_fate_score(score)
     method_name = random.choice(['elliptical curves', 'Riemann space', 'Lee algebra',
-        'black hole evaporation', 'quantum computing', 'M-theory', 'spacetime wrapping', 'forbidden dark magic'])
+        'black hole evaporation', 'quantum computing', 'M-theory', 'spacetime warp', 'forbidden dark magic'])
     title = f'{n} dice using {method_name}'
     if r['extra_dice']: # fun text
         extra = abs(r['extra_dice'])

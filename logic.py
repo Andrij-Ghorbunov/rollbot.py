@@ -385,7 +385,7 @@ def roll_threshold(props):
         ex = roll_inverse(r, expl_chance)
         dicestr_explode = f' ({ex} of them exploded)'
     score = r - b + ex
-    dicestr = f'Threshold: {t}\r\nSuccess: {dicestr_success} dice{dicestr_explode}\r\nFail: {dicestr_fail} dice{dicestr_botch}'
+    dicestr = f'Threshold: {t}/{d}\r\nSuccess: {dicestr_success} dice{dicestr_explode}\r\nFail: {dicestr_fail} dice{dicestr_botch}'
     return {
         'score': score,
         'str': dicestr,

@@ -8,6 +8,8 @@ import math
 def get_code(match: re.Match, name: str, default):
     strcode = match.group(name)
     if strcode:
+        if strcode.startswith('(') and strcode.endswith(')'):
+            return int(eval(strcode))
         return int(strcode)
     return default
 

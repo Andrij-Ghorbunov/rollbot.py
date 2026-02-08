@@ -4,12 +4,13 @@ import numpy
 import scipy
 import scipy.special
 import math
+from simpleeval import simple_eval
 
 def get_code(match: re.Match, name: str, default):
     strcode = match.group(name)
     if strcode:
         if strcode.startswith('(') and strcode.endswith(')'):
-            return int(eval(strcode))
+            return int(simple_eval(strcode))
         return int(strcode)
     return default
 

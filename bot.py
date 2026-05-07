@@ -54,5 +54,6 @@ app.add_error_handler(error)
 app.add_handler(CommandHandler("hello", hello))
 app.add_handler(CommandHandler("help", help))
 app.add_handler(CommandHandler("roll", roll))
+app.add_handler(CommandHandler("r", roll))
 
 app.run_polling()

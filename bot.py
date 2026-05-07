@@ -12,7 +12,16 @@ def user_tag(user: User):
     if user.last_name:
         name += ' ' + user.last_name
     return f'<a href="tg://user?id={user.id}">{name}</a>'
-    pass
+
+def split_command(text: str):
+    if not text:
+        return None, None
+    if text[0] != '/':
+        return None, None
+    match = re.search(r'^/\w+\b(.*)$', text)
+    if not match:
+        return None, None
+    return text[:match.start(1)], match.group(1)
 
 async def hello(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f'Hello {update.effective_user.first_name}')
@@ -25,10 +34,10 @@ async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         + "exceeding successes from the first roll will be added to the pool of the second one).")
 
 async def roll(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message.text[:5] != '/roll':
+    command, code = split_command(update.message.text)
+    if not command or (command != '/roll' and command != '/r'):
         await update.message.reply_text(f'Something strange happened')
         return
-    code = update.message.text[5:]
     if len(code) and code[0] == '@':
         match = re.search(r'^[\w_]+\b(.*)$', code[1:])
         if not match:
